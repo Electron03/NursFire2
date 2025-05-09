@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml/1"  fx:controller="org.example.nursfire2.controller.LoginController"
+      stylesheets="@../css/styles.css">
+    <Label text="Введите пароль" styleClass="passwordLabel"/>
+    <PasswordField fx:id="passwordField" promptText="Пароль"/>
+    <Button text="Войти" onAction="#handleLogin" fx:id="loginButton"/>
+    <Button text="Задать пароль" onAction="#handleSetPassword" fx:id="setPasswordButton" />
+    <Label fx:id="messageLabel" textFill="red" styleClass="massage"/>
+</VBox>

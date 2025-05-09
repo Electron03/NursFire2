@@ -1,0 +1,45 @@
+/* Общий стиль для VBox */
+.root {
+    -fx-alignment: center;
+    -fx-spacing: 15px; /* отступы между элементами */
+    -fx-padding: 30px; /* внутренние отступы от краёв VBox */
+    -fx-background-color: #f9f9f9; /* светлый фон */
+}
+
+/* Стиль для метки пароля */
+.passwordLabel {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+}
+
+/* Стиль для поля ввода пароля */
+#passwordField {
+    -fx-pref-width: 250px;
+    -fx-font-size: 14px;
+    -fx-background-radius: 12px;
+    -fx-border-radius: 12px;
+    -fx-padding: 8px;
+}
+
+/* Стиль для кнопок */
+#loginButton, #setPasswordButton {
+    -fx-pref-width: 150px;
+    -fx-font-size: 14px;
+    -fx-background-color: #4CAF50;
+    -fx-text-fill: white;
+    -fx-background-radius: 12px;
+    -fx-border-radius: 12px;
+    -fx-cursor: hand;
+}
+
+/* При наведении на кнопки */
+#loginButton:hover, #setPasswordButton:hover {
+    -fx-background-color: #45a049;
+}
+
+/* Стиль для сообщения */
+.massage {
+    -fx-font-size: 12px;
+    -fx-text-fill: red;
+}
+

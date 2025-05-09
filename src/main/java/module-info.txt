@@ -1,0 +1,14 @@
+module org.example.nursfire2 {
+    requires javafx.controls;
+    requires javafx.fxml;
+
+    requires net.synedra.validatorfx;
+    requires org.kordamp.bootstrapfx.core;
+    requires java.sql;
+    requires jbcrypt;
+    requires org.pcap4j.core;
+
+    opens org.example.nursfire2.controller to javafx.fxml;
+    exports org.example.nursfire2.application;
+    exports org.example.nursfire2.controller;
+}
