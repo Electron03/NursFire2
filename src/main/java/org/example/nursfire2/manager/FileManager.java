@@ -22,7 +22,7 @@ public class FileManager {
                 // Убедимся, что ключ длиной 16 байт (AES-128)
                 if (userKey.length() < 16) {
                     userKey = String.format("%-16s", userKey); // дополним пробелами
-                } else if (userKey.length() > 16) {
+                        } else if (userKey.length() > 16) {
                     userKey = userKey.substring(0, 16); // обрежем
                 }
 

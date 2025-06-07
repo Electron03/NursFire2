@@ -7,8 +7,10 @@ network_traffic.db
 replay_pid2432.log
 weka_model.model
 password.txt
+traffic_data.arff
 *.log
 *.db
+*.arff
 ### IntelliJ IDEA ###
 .idea/modules.xml
 .idea/jarRepositories.xml

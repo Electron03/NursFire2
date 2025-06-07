@@ -6,8 +6,35 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<VBox xmlns="http://javafx.com/javafx"
+<BorderPane xmlns="http://javafx.com/javafx"
       xmlns:fx="http://javafx.com/fxml/1"  fx:controller="org.example.nursfire2.controller.HandleEncryptFileView"
       stylesheets="@../css/EncryptStyles.css">
+<left>
+    <VBox spacing="10" alignment="TOP_LEFT" >
+        <Label text="Выбор папки:" />
+        <HBox spacing="5">
+            <TextField fx:id="pathField" prefWidth="200" promptText="Путь к файлам..." />
+            <Button text="Обзор" onAction="#handleBrowse" fx:id="browseButton"/>
+            <TextField fx:id="keyField" prefWidth="200" promptText="ключ" />
+        </HBox>
 
-</VBox>
+        <Button text="Зашифровать" onAction="#handleEncrypt" maxWidth="Infinity"/>
+        <VBox fx:id="spacer" VBox.vgrow="ALWAYS"/> <!-- Раздвигает кнопку вниз -->
+        <Button text="Назад" onAction="#handleBack" maxWidth="Infinity"/>
+    </VBox>
+</left>
+    <center>
+        <VBox spacing="10" alignment="TOP_CENTER" >
+            <Label text="Зашифрованные файлы" style="-fx-font-size: 16px; -fx-font-weight: bold;" />
+
+            <TableView fx:id="encryptedFilesTable" VBox.vgrow="ALWAYS">
+                <columns>
+                    <TableColumn fx:id="fileNameColumn" text="Имя файла" prefWidth="150"/>
+                    <TableColumn fx:id="filePathColumn" text="Путь" prefWidth="200"/>
+                    <TableColumn fx:id="dateEncryptedColumn" text="Дата шифрования" prefWidth="200"/>
+                    <TableColumn fx:id="actionColumn" text="Действие" prefWidth="150"/>
+                </columns>
+            </TableView>
+        </VBox>
+    </center>
+</BorderPane>

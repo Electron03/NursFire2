@@ -29,14 +29,14 @@ public class HelloApplication extends Application {
         try {
             DatabaseManager.createTables();
 
-//            // Запуск сниффера в отдельном потоке
-//            new Thread(() -> {
-//                try {
-//                    PacketSniffer.startSniffing();
-//                } catch (Exception e) {
-//                    e.printStackTrace();
-//                }
-//            }).start();
+//            Запуск сниффера в отдельном потоке
+          new Thread(() -> {
+                try {
+                    PacketSniffer.startSniffing();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+           }).start();
 
 
 

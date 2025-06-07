@@ -11,7 +11,14 @@ import weka.core.Attribute;
 import weka.core.converters.ConverterUtils.DataSource;
 
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 public class PacketClassifier {
@@ -31,40 +38,28 @@ public class PacketClassifier {
                 e.printStackTrace();
             }
         } else {
-            trainModel();
+            trainModel("traffic_data.arff");
         }
     }
 
-    private void trainModel() {
+    public void trainModel(String arffFilePath) {
         try {
-            Instances dataset = createEmptyDataset();
-            Random rand = new Random();
-
-            for (int i = 0; i < 1000; i++) {
-                double[] values = new double[7]; // 6 признаков + класс
-                values[0] = 40 + rand.nextInt(1460); // packetLength
-                values[1] = rand.nextInt(3);         // protocol (TCP=0, UDP=1, ICMP=2)
-                values[2] = rand.nextInt(100);       // numConnections
-                values[3] = rand.nextInt(3);         // tcpFlag (SYN=0, ACK=1, FIN=2)
-                values[4] = rand.nextInt(1024);      // dstPort
-                values[5] = rand.nextDouble();       // interArrivalTime
-
-                int classIndex = rand.nextInt(attackTypes.length);
-                values[6] = classIndex;              // attack type
-
-                Instance instance = new DenseInstance(1.0, values);
-                dataset.add(instance);
-            }
+            DataSource source = new DataSource(arffFilePath);
+            Instances dataset = source.getDataSet();
+            dataset.setClassIndex(dataset.numAttributes() - 1);
 
             model = new RandomForest();
             model.buildClassifier(dataset);
             SerializationHelper.write("weka_model.model", model);
-            datasetFormat = dataset;
 
+            datasetFormat = dataset.stringFreeStructure();
+
+            System.out.println("Model trained from file: " + arffFilePath);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
 
     private Instances createEmptyDataset() {
         ArrayList<Attribute> attributes = new ArrayList<>();
@@ -105,7 +100,7 @@ public class PacketClassifier {
             double[] distribution = model.distributionForInstance(instance);
             float confidence = (float) distribution[(int) classIndex];
 
-            String modelVersion = "1.0"; // Пока вручную, можешь привязать к дате или хешу
+            String modelVersion = "1.0";
 
             return new PredictionResult(predictedClass, confidence, modelVersion);
 
@@ -114,22 +109,113 @@ public class PacketClassifier {
             return new PredictionResult("error", 0f, "1.0");
         }
     }
-
-
-    public void retrainModelFromFile(String arffFilePath) {
+    public void retrainModelFromDBAndFile(String dbPath, String arffFilePath) {
         try {
+            List<double[]> featuresList = new ArrayList<>();
+            List<String> classLabels = new ArrayList<>();
 
+            Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
+            Statement stmt = conn.createStatement();
+
+            String query = """
+            SELECT 
+                cp.packet_size, cp.protocol, cp.destination_port, 
+                pm.flags, pm.packet_type
+            FROM CapturedPacket cp
+            JOIN PacketMetadata pm ON cp.id = pm.id
+        """;
+
+            ResultSet rs = stmt.executeQuery(query);
+
+            while (rs.next()) {
+                double[] features = new double[6];
+
+                // Признак 1: packet size
+                features[0] = rs.getInt("packet_size");
+
+                // Признак 2: protocol (строка → число)
+                String protocol = rs.getString("protocol").toUpperCase();
+                features[1] = switch (protocol) {
+                    case "TCP" -> 0;
+                    case "UDP" -> 1;
+                    case "ICMP" -> 2;
+                    default -> -1; // неизвестный
+                };
+
+                // Признак 3: numConnections — фиктивный (пока)
+                features[2] = 0;
+
+                // Признак 4: tcpFlag
+                String flag = rs.getString("flags").toUpperCase();
+                features[3] = switch (flag) {
+                    case "SYN" -> 0;
+                    case "ACK" -> 1;
+                    case "FIN" -> 2;
+                    default -> -1;
+                };
+
+                // Признак 5: destination port
+                features[4] = rs.getInt("destination_port");
+
+                // Признак 6: interArrivalTime — фиктивный
+                features[5] = 0.0;
+
+                // Метка класса
+                String label = rs.getString("packet_type");
+
+                featuresList.add(features);
+                classLabels.add(label);
+            }
+
+            rs.close();
+            stmt.close();
+            conn.close();
+
+            // Запись в ARFF
+            writeToArffFile(arffFilePath, featuresList, classLabels);
+
+            // Загрузка и обучение модели
             DataSource source = new DataSource(arffFilePath);
             Instances newDataset = source.getDataSet();
             newDataset.setClassIndex(newDataset.numAttributes() - 1);
 
-            // Обновляем модель
             model.buildClassifier(newDataset);
-            SerializationHelper.write("weka_model.model", model); // Сохраняем обновленную модель
+            SerializationHelper.write("weka_model.model", model);
 
-            System.out.println("Model retrained successfully with new data.");
+            System.out.println("Model retrained successfully from database and saved.");
+
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
+    private void writeToArffFile(String filePath, List<double[]> features, List<String> labels) {
+        try (FileWriter writer = new FileWriter(filePath)) {
+            writer.write("""
+            @RELATION PacketData
+
+            @ATTRIBUTE packetLength NUMERIC
+            @ATTRIBUTE protocol NUMERIC
+            @ATTRIBUTE numConnections NUMERIC
+            @ATTRIBUTE tcpFlag NUMERIC
+            @ATTRIBUTE dstPort NUMERIC
+            @ATTRIBUTE interArrivalTime NUMERIC
+            @ATTRIBUTE class {normal,DoS,Probe,R2L,U2R}
+
+            @DATA
+            """);
+
+            for (int i = 0; i < features.size(); i++) {
+                double[] f = features.get(i);
+                writer.write(String.format("%f,%f,%f,%f,%f,%f,%s\n",
+                        f[0], f[1], f[2], f[3], f[4], f[5], labels.get(i)));
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+
 }

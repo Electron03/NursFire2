@@ -15,6 +15,7 @@ public class PacketSniffer {
     static PacketClassifier classifier = new PacketClassifier();
 
     public static void startSniffing() throws PcapNativeException, NotOpenException, InterruptedException {
+        //получение актуального интерфейса
         PcapNetworkInterface nif = getAvailableNetworkInterface();
         if (nif == null) {
             System.out.println("Error: No active network interface found.");
@@ -24,11 +25,11 @@ public class PacketSniffer {
         int snapLen = 65536;
         PcapNetworkInterface.PromiscuousMode mode = PcapNetworkInterface.PromiscuousMode.PROMISCUOUS;
         int timeout = 10;
+        //перхват пакетов
         PcapHandle handle = nif.openLive(snapLen, mode, timeout);
 
         PacketListener listener = packet -> {
             try {
-                // Ваш код обработки пакетов здесь...
                 String id = UUID.randomUUID().toString();
                 String srcIp = "unknown", dstIp = "unknown";
                 int srcPort = -1, dstPort = -1;
@@ -85,16 +86,16 @@ public class PacketSniffer {
                 // Классификация пакета
                 PredictionResult prediction = classifier.classify(features);
 
-// Сохранение логов предсказания
+                // Сохранение логов предсказания
                 String predictionId = UUID.randomUUID().toString();
                 DatabaseManager.insertMLPrediction(predictionId, id, prediction.getModelVersion(), prediction.getPredictedClass(), prediction.getConfidence());
 
                 if ("attack".equals(prediction.getPredictedClass())) {
                     String attackId = UUID.randomUUID().toString();
                     DatabaseManager.insertAttack(attackId, id, prediction.getPredictedClass(), 5, "ML Detection");
-                    System.out.println("⚠ Attack detected!");
+                    System.out.println(" Attack detected!");
                 } else {
-                    System.out.println("✅ Successful packet.");
+                    System.out.println(" Successful packet.");
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -121,7 +122,7 @@ public class PacketSniffer {
                     }
                 }
             }
-            PcapNetworkInterface nif = allDevs.get(3); // Выбираем третий интерфейс (настраиваем по необходимости)
+            PcapNetworkInterface nif = allDevs.get(3);
             return nif;
         } catch (PcapNativeException e) {
             e.printStackTrace();

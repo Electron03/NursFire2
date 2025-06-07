@@ -6,8 +6,63 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<VBox xmlns="http://javafx.com/javafx"
-      xmlns:fx="http://javafx.com/fxml/1"  fx:controller="org.example.nursfire2.controller.HandleAddFolderView"
-      stylesheets="@../css/AddForderSryles.css">
+<?import javafx.collections.FXCollections?>
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="org.example.nursfire2.controller.HandleAddFolderView"
+            stylesheets="@../css/AddForderSryles.css">
 
-</VBox>
+    <left>
+        <VBox spacing="15" alignment="TOP_LEFT" BorderPane.alignment="TOP_LEFT">
+
+        <HBox spacing="10">
+                <TextField fx:id="pathField"
+                           HBox.hgrow="ALWAYS"
+                           promptText="Введите путь к папке или выберите через кнопку"/>
+                <Button text="Обзор..." onAction="#onBrowseClicked" fx:id="browseButton" styleClass="browse-button"/>
+            </HBox>
+
+            <!-- ВЫПАДАЮЩИЙ СПИСОК ДЛЯ УПРАВЛЕНИЯ ПРАВАМИ -->
+            <ComboBox fx:id="permissionComboBox" promptText="Выберите доступ">
+                <items>
+                    <FXCollections fx:factory="observableArrayList">
+                        <String fx:value="Только чтение"/>
+                        <String fx:value="Чтение и запись"/>
+                        <String fx:value="Полный доступ"/>
+                    </FXCollections>
+                </items>
+            </ComboBox>
+
+            <Button text="Применить доступ" onAction="#onOkClicked"/>
+            <Label text="" fx:id="result"/>
+
+            <Region fx:id="spacer" VBox.vgrow="ALWAYS"/>
+            <Button text="exit" onAction="#onExit" fx:id="exitButton"/>
+        </VBox>
+    </left>
+
+    <center>
+        <VBox spacing="10" alignment="TOP_CENTER">
+            <Label text="Отслеживаемые папки" style="-fx-font-size: 16px; -fx-font-weight: bold;" />
+
+            <TableView fx:id="folderTable" VBox.vgrow="ALWAYS">
+                <columns>
+                    <TableColumn fx:id="pathColumn" text="Путь к папке" prefWidth="400"/>
+                    <TableColumn fx:id="actionColumn" text="Действие" prefWidth="100"/>
+                </columns>
+            </TableView>
+            <Label text="Журнал доступа к файлам" style="-fx-font-size: 16px; -fx-font-weight: bold;" />
+
+            <TableView fx:id="accessLogTable" VBox.vgrow="ALWAYS">
+                <columns>
+                    <TableColumn fx:id="usernameColumn" text="Пользователь" prefWidth="150"/>
+                    <TableColumn fx:id="filepathColumn" text="Файл" prefWidth="300"/>
+                    <TableColumn fx:id="accessTypeColumn" text="Тип доступа" prefWidth="100"/>
+                    <TableColumn fx:id="accessTimeColumn" text="Время" prefWidth="200"/>
+                    <TableColumn fx:id="accessResultColumn" text="Результат" prefWidth="100"/>
+                </columns>
+            </TableView>
+        </VBox>
+    </center>
+
+</BorderPane>

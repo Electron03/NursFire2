@@ -1,5 +1,6 @@
 package org.example.nursfire2.utils;
 
+import org.example.nursfire2.controller.HandleAddFolderView;
 import org.example.nursfire2.database.DatabaseManager;
 
 import java.io.IOException;
@@ -42,9 +43,9 @@ public class FolderMonitor implements Runnable {
                             StandardWatchEventKinds.ENTRY_DELETE,
                             StandardWatchEventKinds.ENTRY_MODIFY);
                     registeredFolders.add(folder);
-                    System.out.println("✅ Зарегистрирована папка: " + folder);
+                    System.out.println("folder register: " + folder);
                 } catch (IOException e) {
-                    System.err.println("❌ Не удалось зарегистрировать: " + folder);
+                    System.err.println("error register folder: " + folder);
                 }
             }
         }
