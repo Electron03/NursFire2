@@ -55,6 +55,10 @@ public class HandleEncryptFileView {
         browseButton.getStyleClass().clear();
         browseButton.setStyle("");
 
+reset();
+    }
+
+    public void reset(){
         fileNameColumn.setCellValueFactory(cellData -> cellData.getValue().fileNameProperty());
         filePathColumn.setCellValueFactory(cellData -> cellData.getValue().filePathProperty());
         dateEncryptedColumn.setCellValueFactory(cellData -> cellData.getValue().dateEncryptedProperty());
@@ -66,7 +70,6 @@ public class HandleEncryptFileView {
 
         addDecryptButtonToTable();
     }
-
     @FXML
     public void handleBrowse(ActionEvent event) {
         FileChooser fileChooser = new FileChooser();
@@ -95,7 +98,7 @@ public class HandleEncryptFileView {
             showAlert("ошибка","нет ключа");
         }
         FileManager.encryptFileAndLog(path1,key);
-
+        reset();
 
     }
 

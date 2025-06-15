@@ -38,7 +38,7 @@ public class PacketClassifier {
                 e.printStackTrace();
             }
         } else {
-            trainModel("traffic_data.arff");
+            trainModel("updated_traffic_dataset.arff");
         }
     }
 

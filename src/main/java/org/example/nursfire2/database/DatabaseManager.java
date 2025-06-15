@@ -2,7 +2,7 @@
 
     import org.example.nursfire2.models.AccessLogEntry;
     import org.example.nursfire2.models.EncryptedFile;
-    import org.example.nursfire2.models.MLPredictionLogEntry;
+    import org.example.nursfire2.models.AttackEntry;
     import org.example.nursfire2.models.WatchedFolder;
 
     import java.nio.file.Path;
@@ -113,6 +113,7 @@
                 stmt.execute(createAccessLog);
                 stmt.execute(createWatchedFolders);
                 System.out.println("Все таблицы успешно созданы!");
+                stmt.execute("PRAGMA journal_mode=WAL;");
             } catch (SQLException e) {
                 e.printStackTrace();
             }
@@ -145,29 +146,7 @@
                 return false;
             }
         }
-        public static List<MLPredictionLogEntry> getMLPredictionLogs() {
-            List<MLPredictionLogEntry> logs = new ArrayList<>();
-            String sql = "SELECT packet_id, model_version, predicted_class, confidence, timestamp FROM MLPredictionLog";
 
-            try (Connection conn = connect();
-                 Statement stmt = conn.createStatement();
-                 ResultSet rs = stmt.executeQuery(sql)) {
-
-                while (rs.next()) {
-                    logs.add(new MLPredictionLogEntry(
-                            rs.getString("packet_id"),
-                            rs.getString("model_version"),
-                            rs.getString("predicted_class"),
-                            rs.getFloat("confidence"),
-                            rs.getString("timestamp")
-                    ));
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-
-            return logs;
-        }
         public static List<EncryptedFile> getEncryptedFiles() {
             List<EncryptedFile> files = new ArrayList<>();
             String sql = "SELECT id, filename, path, encrypted_at, encryption_key FROM EncryptedFiles";
@@ -279,6 +258,31 @@
             } catch (SQLException e) {
                 e.printStackTrace();
             }
+        }
+        public static List<AttackEntry> getAttackLogs() {
+            List<AttackEntry> logs = new ArrayList<>();
+            String sql = "SELECT id, packet_id, attack_type, severity, detection_method, detected_at FROM Attack";
+
+            try (Connection conn = connect();
+                 Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery(sql)) {
+
+                while (rs.next()) {
+                    logs.add(new AttackEntry(
+                            rs.getString("id"),
+                            rs.getString("packet_id"),
+                            rs.getString("attack_type"),
+                            rs.getInt("severity"),                      // <-- исправлено здесь
+                            rs.getString("detection_method"),
+                            rs.getString("detected_at")
+                    ));
+                }
+
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
+            return logs;
         }
 
         // Добавление записи об атаке

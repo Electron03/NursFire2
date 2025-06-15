@@ -7,6 +7,10 @@
 <?import javafx.scene.layout.*?>
 
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.chart.PieChart?>
+<?import javafx.scene.chart.BarChart?>
+<?import javafx.scene.chart.CategoryAxis?>
+<?import javafx.scene.chart.NumberAxis?>
 <BorderPane xmlns="http://javafx.com/javafx"
             xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="org.example.nursfire2.controller.MainController"
@@ -17,14 +21,17 @@
             <Button text="Добавить папку" fx:id="addFolderButton" onAction="#handleAddFolder"/>
             <Button text="Зашифровать файл" fx:id="encryptFileButton" onAction="#handleEncryptFile"/>
             <Button text="Отчёты" fx:id="reportsButton" onAction="#handleReports"/>
+            <Button text="Переобучить модел" fx:id="overfittingML" onAction="#overfitting"/>
         </VBox>
     </left>
 
     <center>
         <VBox spacing="10" alignment="CENTER">
-            <!-- Здесь будут диаграммы и статистика -->
-            <Label text="Диаграмма 1"/>
-            <Label text="Диаграмма 2"/>
+            <Label text="Диаграмма 1: Машинное обучение"/>
+            <PieChart fx:id="mlPieChart" prefHeight="300" prefWidth="400"/>
+
+            <Label text="Диаграмма 2: Отчёт по доступу к файлам"/>
+            <PieChart fx:id="accessLogPieChart" prefHeight="300" prefWidth="400"/>
         </VBox>
     </center>
 

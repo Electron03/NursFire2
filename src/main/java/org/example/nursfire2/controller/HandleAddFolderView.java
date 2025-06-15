@@ -55,6 +55,9 @@ public class HandleAddFolderView {
         browseButton.setId(null);
         browseButton.getStyleClass().clear();
         browseButton.setStyle("");
+      reset();
+    }
+    public void reset(){
         pathColumn.setCellValueFactory(new PropertyValueFactory<>("folderPath"));
 
         pathColumn.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getFolderPath()));
@@ -129,10 +132,10 @@ public class HandleAddFolderView {
                 System.out.println("❓ Неизвестный вариант доступа.");
         }
         if(DatabaseManager.addWatchedFolder(folderPath.toString())){
-            result.setText("папка успешно бобавлено");
+            result.setText("папка успешно добавлено");
         }else result.setText("ошибка добавлении папки");
         printPermissions(folderPath);
-
+        reset();
     }
     @FXML
     private void onExit(ActionEvent event) throws IOException {

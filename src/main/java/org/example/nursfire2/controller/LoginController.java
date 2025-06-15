@@ -5,7 +5,9 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
+import org.example.nursfire2.ML.PacketClassifier;
 import org.example.nursfire2.manager.PasswordManager;
+import org.example.nursfire2.models.PredictionResult;
 import org.example.nursfire2.stage.*;
 
 import java.util.Optional;
@@ -54,6 +56,15 @@ public class LoginController {
             messageLabel.setText("Неверный пароль!");
             messageLabel.setStyle("-fx-text-fill: red;");
         }
+        PacketClassifier classifier = new PacketClassifier();
+
+        double[] testFeatures = new double[] {
+                66, 0, 6, 0, 80, 0.01
+        };
+
+        PredictionResult result = classifier.classify(testFeatures);
+        System.out.println("Predicted class: " + result.getPredictedClass());
+
     }
 
     @FXML

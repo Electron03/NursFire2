@@ -8,14 +8,16 @@ import org.pcap4j.packet.IpV4Packet;
 import org.pcap4j.packet.TcpPacket;
 import org.pcap4j.packet.UdpPacket;
 
+import java.awt.*;
+import java.awt.TrayIcon.MessageType;
 import java.util.List;
 import java.util.UUID;
 
 public class PacketSniffer {
     static PacketClassifier classifier = new PacketClassifier();
+    static long lastTimestamp = -1;
 
     public static void startSniffing() throws PcapNativeException, NotOpenException, InterruptedException {
-        //получение актуального интерфейса
         PcapNetworkInterface nif = getAvailableNetworkInterface();
         if (nif == null) {
             System.out.println("Error: No active network interface found.");
@@ -25,7 +27,7 @@ public class PacketSniffer {
         int snapLen = 65536;
         PcapNetworkInterface.PromiscuousMode mode = PcapNetworkInterface.PromiscuousMode.PROMISCUOUS;
         int timeout = 10;
-        //перхват пакетов
+
         PcapHandle handle = nif.openLive(snapLen, mode, timeout);
 
         PacketListener listener = packet -> {
@@ -36,7 +38,7 @@ public class PacketSniffer {
                 String protocol = packet.getClass().getSimpleName();
                 int packetSize = packet.length();
                 int ttl = -1;
-                String flags = "";
+                String flags = "NONE";
                 int payloadSize = packet.getPayload() != null ? packet.getPayload().length() : 0;
                 long timestamp = System.currentTimeMillis();
 
@@ -52,78 +54,97 @@ public class PacketSniffer {
                     TcpPacket.TcpHeader tcpHeader = tcp.getHeader();
                     srcPort = tcpHeader.getSrcPort().valueAsInt();
                     dstPort = tcpHeader.getDstPort().valueAsInt();
-                    flags += tcpHeader.getSyn() ? "SYN " : "";
-                    flags += tcpHeader.getAck() ? "ACK " : "";
-                    flags += tcpHeader.getFin() ? "FIN " : "";
-                    flags += tcpHeader.getRst() ? "RST " : "";
-                    flags += tcpHeader.getPsh() ? "PSH " : "";
-                    flags += tcpHeader.getUrg() ? "URG " : "";
-                    flags = flags.trim();
+                    if (tcpHeader.getSyn()) flags = "SYN";
+                    else if (tcpHeader.getAck()) flags = "ACK";
+                    else if (tcpHeader.getFin()) flags = "FIN";
+                    else if (tcpHeader.getRst()) flags = "RST";
+                    else if (tcpHeader.getPsh()) flags = "PSH";
+                    else if (tcpHeader.getUrg()) flags = "URG";
                 } else if (packet.contains(UdpPacket.class)) {
                     UdpPacket udp = packet.get(UdpPacket.class);
                     srcPort = udp.getHeader().getSrcPort().valueAsInt();
                     dstPort = udp.getHeader().getDstPort().valueAsInt();
                 }
 
-                // Сохранение пакета в базу данных
+                // Сохраняем в БД
                 DatabaseManager.insertCapturedPacket(id, srcIp, dstIp, srcPort, dstPort, protocol, packetSize, packet.getRawData());
                 DatabaseManager.insertPacketMetadata(id, ttl, flags, payloadSize, "Unknown", -1f);
 
                 System.out.println("Packet: " + protocol + " | " + srcIp + " → " + dstIp);
 
-                // Признаки для классификации
-                double[] features = new double[] {
-                        srcPort, dstPort, packetSize, ttl, payloadSize,
-                        timestamp,  // Время пакета в миллисекундах
-                        (flags.contains("SYN") ? 1 : 0), // Признак наличия флага SYN
-                        (flags.contains("ACK") ? 1 : 0), // Признак наличия флага ACK
-                        (flags.contains("FIN") ? 1 : 0), // Признак наличия флага FIN
-                        (flags.contains("RST") ? 1 : 0), // Признак наличия флага RST
-                        (flags.contains("PSH") ? 1 : 0), // Признак наличия флага PSH
-                        (flags.contains("URG") ? 1 : 0)  // Признак наличия флага URG
+                // === Новые признаки ===
+                double protocolCode = protocol.contains("Tcp") ? 0 :
+                        protocol.contains("Udp") ? 1 :
+                                protocol.contains("Icmp") ? 2 : -1;
+
+                double tcpFlagCode = switch (flags) {
+                    case "SYN" -> 0;
+                    case "ACK" -> 1;
+                    case "FIN" -> 2;
+                    case "RST" -> 3;
+                    case "PSH" -> 4;
+                    case "URG" -> 5;
+                    default -> 6;
                 };
 
-                // Классификация пакета
+                int numConnections = ttl > 0 ? 64 - ttl : 0;
+
+                double interArrivalTime = lastTimestamp > 0 ? (timestamp - lastTimestamp) / 1000.0 : 0.5;
+                lastTimestamp = timestamp;
+
+                double[] features = new double[] {
+                        packetSize,
+                        protocolCode,
+                        numConnections,
+                        tcpFlagCode,
+                        dstPort,
+                        interArrivalTime
+                };
+
                 PredictionResult prediction = classifier.classify(features);
 
-                // Сохранение логов предсказания
                 String predictionId = UUID.randomUUID().toString();
                 DatabaseManager.insertMLPrediction(predictionId, id, prediction.getModelVersion(), prediction.getPredictedClass(), prediction.getConfidence());
 
-                if ("attack".equals(prediction.getPredictedClass())) {
+                if ("normal".equalsIgnoreCase(prediction.getPredictedClass())) {
+                    System.out.println("✅ Normal packet.");
+                } else {
                     String attackId = UUID.randomUUID().toString();
                     DatabaseManager.insertAttack(attackId, id, prediction.getPredictedClass(), 5, "ML Detection");
-                    System.out.println(" Attack detected!");
-                } else {
-                    System.out.println(" Successful packet.");
+
+                    if (SystemTray.isSupported()) {
+                        SystemTray tray = SystemTray.getSystemTray();
+                        TrayIcon trayIcon = new TrayIcon(new java.awt.image.BufferedImage(16, 16, java.awt.image.BufferedImage.TYPE_INT_ARGB), "Java Notification");
+                        trayIcon.setImageAutoSize(true);
+                        trayIcon.setToolTip("Java уведомление");
+                        tray.add(trayIcon);
+
+                        trayIcon.displayMessage("Внимание", "Зафиксирована атака", MessageType.WARNING);
+                    }
+
+                    System.out.println("⚠️  Attack detected!");
                 }
             } catch (Exception e) {
                 e.printStackTrace();
             }
         };
 
-        // Запуск перехвата в отдельном потоке
         System.out.println("Started packet sniffing... (Press Ctrl+C to stop)");
-        handle.loop(-1, listener);  // Это блокирует текущий поток, но не блокирует UI поток
+        handle.loop(-1, listener);
     }
 
     private static PcapNetworkInterface getAvailableNetworkInterface() {
         try {
             List<PcapNetworkInterface> allDevs = Pcaps.findAllDevs();
-            // Перебираем все интерфейсы
             for (PcapNetworkInterface nif : allDevs) {
                 System.out.println("Interface: " + nif.getName());
-
-                // Перебираем все адреса, связанные с этим интерфейсом
                 for (PcapAddress addr : nif.getAddresses()) {
-                    // Если у адреса есть IPv4-адрес, выводим его
                     if (addr.getAddress() != null && addr.getAddress().getHostAddress().contains(".")) {
                         System.out.println("IP address: " + addr.getAddress().getHostAddress());
                     }
                 }
             }
-            PcapNetworkInterface nif = allDevs.get(3);
-            return nif;
+            return allDevs.get(3); // или выбрать нужный вручную
         } catch (PcapNativeException e) {
             e.printStackTrace();
         }

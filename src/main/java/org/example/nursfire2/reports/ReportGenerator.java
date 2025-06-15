@@ -10,25 +10,24 @@ import javafx.stage.FileChooser;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.example.nursfire2.database.DatabaseManager;
-import org.example.nursfire2.models.MLPredictionLogEntry;
 import org.example.nursfire2.models.AccessLogEntry;
-import java.util.stream.Stream;
+import org.example.nursfire2.models.AttackEntry;
 
 import java.awt.*;
 import java.io.*;
 import java.util.*;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class ReportGenerator {
 
     public static void generateMLReport(String format) {
-        File file = chooseFile("Сохранить отчёт по машинному обучению", format, "ml_report");
+        File file = chooseFile("Сохранить отчёт об атаках", format, "ml_report");
         if (file != null) {
             if (format.equals("PDF")) {
-                generateMLReportPdf(file);
+                generateAttackReportPdf(file);
             } else {
-                generateMLReportExcel(file);
+                generateAttackReportExcel(file);
             }
             openFile(file);
         }
@@ -54,35 +53,31 @@ public class ReportGenerator {
         return fileChooser.showSaveDialog(null);
     }
 
-    private static void generateMLReportPdf(File file) {
-        List<MLPredictionLogEntry> logs = DatabaseManager.getMLPredictionLogs();
-        Map<String, Long> classCounts = logs.stream().collect(Collectors.groupingBy(MLPredictionLogEntry::getPredictedClass, Collectors.counting()));
-        double avgConfidence = logs.stream().mapToDouble(MLPredictionLogEntry::getConfidence).average().orElse(0);
+    private static void generateAttackReportPdf(File file) {
+        List<AttackEntry> logs=DatabaseManager.getAttackLogs();
 
         try {
             Document document = new Document();
             PdfWriter.getInstance(document, new FileOutputStream(file));
             document.open();
 
-            document.add(new Paragraph("ОТЧЁТ ПО РАБОТЕ МАШИННОГО ОБУЧЕНИЯ", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16)));
+            document.add(new Paragraph("ОТЧЁТ ОБ ОБНАРУЖЕННЫХ АТАКАХ", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16)));
             document.add(new Paragraph("Количество записей: " + logs.size()));
-            document.add(new Paragraph("Средняя уверенность: " + String.format("%.2f", avgConfidence)));
-            document.add(new Paragraph("Предсказания по классам: " + classCounts.toString()));
             document.add(Chunk.NEWLINE);
 
             PdfPTable table = new PdfPTable(5);
-            Stream.of("Пакет", "Модель", "Класс", "Уверенность", "Время").forEach(header -> {
+            Stream.of("Пакет", "Тип атаки", "Уровень", "Метод", "Время").forEach(header -> {
                 PdfPCell cell = new PdfPCell(new Phrase(header));
                 cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
                 table.addCell(cell);
             });
 
-            for (MLPredictionLogEntry entry : logs) {
+            for (AttackEntry entry : logs) {
                 table.addCell(entry.getPacketId());
-                table.addCell(entry.getModelVersion());
-                table.addCell(entry.getPredictedClass());
-                table.addCell(String.format("%.2f", entry.getConfidence()));
-                table.addCell(entry.getTimestamp());
+                table.addCell(entry.getAttackType());
+                table.addCell(String.valueOf(entry.getSeverity()));
+                table.addCell(entry.getDetectionMethod());
+                table.addCell(entry.getDetectedAt());
             }
 
             document.add(table);
@@ -92,34 +87,26 @@ public class ReportGenerator {
         }
     }
 
-    private static void generateMLReportExcel(File file) {
-        List<MLPredictionLogEntry> logs = DatabaseManager.getMLPredictionLogs();
-        Map<String, Long> classCounts = logs.stream().collect(Collectors.groupingBy(MLPredictionLogEntry::getPredictedClass, Collectors.counting()));
-        double avgConfidence = logs.stream().mapToDouble(MLPredictionLogEntry::getConfidence).average().orElse(0);
+    private static void generateAttackReportExcel(File file) {
+        List<org.example.nursfire2.models.AttackEntry> logs = org.example.nursfire2.database.DatabaseManager.getAttackLogs();
 
         try (Workbook workbook = new XSSFWorkbook()) {
-            Sheet sheet = workbook.createSheet("ML Report");
-
+            Sheet sheet = workbook.createSheet("Attack Report");
             int rowIdx = 0;
-            sheet.createRow(rowIdx++).createCell(0).setCellValue("ОТЧЁТ ПО РАБОТЕ МАШИННОГО ОБУЧЕНИЯ");
-            sheet.createRow(rowIdx++).createCell(0).setCellValue("Всего записей: " + logs.size());
-            sheet.createRow(rowIdx++).createCell(0).setCellValue("Средняя уверенность: " + String.format("%.2f", avgConfidence));
-            sheet.createRow(rowIdx++).createCell(0).setCellValue("Классы: " + classCounts);
-            rowIdx++;
 
             Row header = sheet.createRow(rowIdx++);
-            String[] columns = {"Пакет", "Модель", "Класс", "Уверенность", "Время"};
+            String[] columns = {"Пакет", "Тип атаки", "Уровень", "Метод", "Время"};
             for (int i = 0; i < columns.length; i++) {
                 header.createCell(i).setCellValue(columns[i]);
             }
 
-            for (MLPredictionLogEntry log : logs) {
+            for (org.example.nursfire2.models.AttackEntry entry : logs) {
                 Row row = sheet.createRow(rowIdx++);
-                row.createCell(0).setCellValue(log.getPacketId());
-                row.createCell(1).setCellValue(log.getModelVersion());
-                row.createCell(2).setCellValue(log.getPredictedClass());
-                row.createCell(3).setCellValue(log.getConfidence());
-                row.createCell(4).setCellValue(log.getTimestamp());
+                row.createCell(0).setCellValue(entry.getPacketId());
+                row.createCell(1).setCellValue(entry.getAttackType());
+                row.createCell(2).setCellValue(entry.getSeverity());
+                row.createCell(3).setCellValue(entry.getDetectionMethod());
+                row.createCell(4).setCellValue(entry.getDetectedAt());
             }
 
             FileOutputStream fos = new FileOutputStream(file);

@@ -5,7 +5,9 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
+import org.example.nursfire2.ML.PacketClassifier;
 import org.example.nursfire2.database.DatabaseManager;
+import org.example.nursfire2.models.PredictionResult;
 import org.example.nursfire2.service.ServiceManager;
 import org.example.nursfire2.sniffer.PacketSniffer;
 import org.example.nursfire2.stage.PageName;
@@ -29,15 +31,15 @@ public class HelloApplication extends Application {
         try {
             DatabaseManager.createTables();
 
-//            Запуск сниффера в отдельном потоке
-          new Thread(() -> {
-                try {
-                    PacketSniffer.startSniffing();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-           }).start();
-
+////            Запуск сниффера в отдельном потоке
+//          new Thread(() -> {
+//                try {
+//                    PacketSniffer.startSniffing();
+//                } catch (Exception e) {
+//                    e.printStackTrace();
+//                }
+//           }).start();
+//
 
 
         } catch (Exception e) {
