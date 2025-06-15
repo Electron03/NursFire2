@@ -3,6 +3,7 @@ package org.example.nursfire2.utils;
 import org.example.nursfire2.controller.HandleAddFolderView;
 import org.example.nursfire2.database.DatabaseManager;
 
+import java.awt.*;
 import java.io.IOException;
 import java.nio.file.*;
 import java.sql.Connection;
@@ -80,6 +81,15 @@ public class FolderMonitor implements Runnable {
                     };
                     String id = UUID.randomUUID().toString();
                     insertAccessLog(id, System.getProperty("user.name"), fullPath.toString(), accessType, "MONITORED");
+                    if (SystemTray.isSupported()) {
+                        SystemTray tray = SystemTray.getSystemTray();
+                        TrayIcon trayIcon = new TrayIcon(new java.awt.image.BufferedImage(16, 16, java.awt.image.BufferedImage.TYPE_INT_ARGB), "Java Notification");
+                        trayIcon.setImageAutoSize(true);
+                        trayIcon.setToolTip("Java уведомление");
+                        tray.add(trayIcon);
+
+                        trayIcon.displayMessage("Внимание", "Зафиксирована попытка"+accessType, TrayIcon.MessageType.WARNING);
+                    }
                 }
                 key.reset();
             } catch (ClosedWatchServiceException e) {
@@ -88,6 +98,8 @@ public class FolderMonitor implements Runnable {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
+            } catch (AWTException e) {
+                throw new RuntimeException(e);
             }
         }
     }
