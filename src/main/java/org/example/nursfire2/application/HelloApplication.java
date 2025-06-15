@@ -32,14 +32,14 @@ public class HelloApplication extends Application {
             DatabaseManager.createTables();
 
 ////            Запуск сниффера в отдельном потоке
-//          new Thread(() -> {
-//                try {
-//                    PacketSniffer.startSniffing();
-//                } catch (Exception e) {
-//                    e.printStackTrace();
-//                }
-//           }).start();
-//
+          new Thread(() -> {
+                try {
+                    PacketSniffer.startSniffing();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+           }).start();
+
 
 
         } catch (Exception e) {
