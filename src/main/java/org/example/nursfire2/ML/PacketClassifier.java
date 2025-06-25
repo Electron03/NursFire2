@@ -1,16 +1,14 @@
+// org.example.nursfire2.ML.PacketClassifier.java (ПОСЛЕ ИСПРАВЛЕНИЙ)
 package org.example.nursfire2.ML;
 
 import org.example.nursfire2.models.PredictionResult;
-import weka.classifiers.Classifier;
-import weka.classifiers.trees.RandomForest;
+import weka.classifiers.trees.J48; // Или любой другой классификатор Weka
+import weka.core.Attribute;
 import weka.core.DenseInstance;
-import weka.core.Instance;
 import weka.core.Instances;
 import weka.core.SerializationHelper;
-import weka.core.Attribute;
-import weka.core.converters.ConverterUtils.DataSource;
+import weka.core.converters.ConverterUtils;
 
-import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.sql.Connection;
@@ -18,53 +16,78 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.io.FileInputStream;
+import java.io.ObjectInputStream;
 import java.util.List;
-import java.util.Random;
 
 public class PacketClassifier {
+    private double[] featureMins;
+    private double[] featureMaxs;
+    private J48 model; // Ваш обученный классификатор Weka
+    private Instances dataHeader; // Заголовок Instances для Weka
 
-    private Classifier model;
-    private Instances datasetFormat;
-
-    private static final String[] attackTypes = {"normal", "DoS", "Probe", "R2L", "U2R"};
-
+    // Конструктор, который будет загружать вашу модель и параметры нормализации
     public PacketClassifier() {
-        File modelFile = new File("weka_model.model");
-        if (modelFile.exists()) {
-            try {
-                model = (Classifier) SerializationHelper.read("weka_model.model");
-                datasetFormat = createEmptyDataset();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        } else {
-            trainModel("updated_traffic_dataset.arff");
-        }
-    }
+        // Путь к файлу вашей обученной модели Weka
+        String modelPath = "path/to/your/trained_model.ser"; // !!! ЗАМЕНИТЕ НА РЕАЛЬНЫЙ ПУТЬ !!!
+        String headerPath = "path/to/your/arff_header.ser"; // !!! ЗАМЕНИТЕ НА РЕАЛЬНЫЙ ПУТЬ К ЗАГОЛОВКУ ARFF !!!
 
-    public void trainModel(String arffFilePath) {
-        try {
-            DataSource source = new DataSource(arffFilePath);
-            Instances dataset = source.getDataSet();
-            dataset.setClassIndex(dataset.numAttributes() - 1);
+        // Эти значения МИНИМУМОВ и МАКСИМУМОВ должны соответствовать тем,
+        // что использовались при обучении вашей модели.
+        // Вам нужно будет получить их из вашего процесса подготовки данных.
+        // Это ПРИМЕРНЫЕ значения, основанные на вашем ARFF.
+        // Точные значения должны быть извлечены из данных, использованных для ТРЕНИРОВКИ.
+        this.featureMins = new double[]{
+                981,    // packetLength min
+                0,      // protocol min (TCP)
+                5,      // numConnections min
+                0,      // tcpFlag min
+                9284,   // dstPort min
+                0.3425  // interArrivalTime min
+        };
+        this.featureMaxs = new double[]{
+                1498,   // packetLength max
+                2,      // protocol max (ICMP)
+                91,     // numConnections max
+                6,      // tcpFlag max
+                61849,  // dstPort max
+                0.6823  // interArrivalTime max
+        };
 
-            model = new RandomForest();
-            model.buildClassifier(dataset);
-            SerializationHelper.write("weka_model.model", model);
-
-            datasetFormat = dataset.stringFreeStructure();
-
-            System.out.println("Model trained from file: " + arffFilePath);
+        // Загрузка обученной модели Weka
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(modelPath))) {
+            this.model = (J48) ois.readObject();
+            System.out.println("Модель Weka успешно загружена.");
         } catch (Exception e) {
+            System.err.println("Ошибка при загрузке модели Weka: " + e.getMessage());
             e.printStackTrace();
+            this.model = null; // Установить null, если загрузка не удалась
+        }
+
+        // Загрузка заголовка Instances для Weka (очень важно для создания новых экземпляров)
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(headerPath))) {
+            this.dataHeader = (Instances) ois.readObject();
+            System.out.println("Заголовок Instances успешно загружен.");
+        } catch (Exception e) {
+            System.err.println("Ошибка при загрузке заголовка Instances: " + e.getMessage());
+            e.printStackTrace();
+            // Если заголовок не загружен, вам нужно будет создать его вручную
+            // или бросить исключение, так как классификация невозможна.
+            this.dataHeader = createWekaHeader(); // Попытка создать, если не удалось загрузить
+            if (this.dataHeader == null) {
+                System.err.println("Не удалось ни загрузить, ни создать заголовок Weka Instances. Классификация может быть некорректной.");
+            }
+        }
+
+        // Валидация: убедимся, что размеры массивов совпадают с количеством признаков
+        if (featureMins.length != 6 || featureMaxs.length != 6) { // 6 признаков в вашем ARFF
+            System.err.println("Ошибка: Размеры featureMins/Maxs не соответствуют ожидаемому количеству признаков (6).");
         }
     }
 
-
-    private Instances createEmptyDataset() {
+    // Метод для создания заголовка Weka, если его не удалось загрузить
+    private Instances createWekaHeader() {
         ArrayList<Attribute> attributes = new ArrayList<>();
-
-        // Определяем атрибуты
         attributes.add(new Attribute("packetLength"));
         attributes.add(new Attribute("protocol"));
         attributes.add(new Attribute("numConnections"));
@@ -72,41 +95,75 @@ public class PacketClassifier {
         attributes.add(new Attribute("dstPort"));
         attributes.add(new Attribute("interArrivalTime"));
 
+        // Атрибут класса
         ArrayList<String> classValues = new ArrayList<>();
-        for (String label : attackTypes) {
-            classValues.add(label);
-        }
+        classValues.add("normal");
+        classValues.add("DoS");
+        classValues.add("Probe");
+        classValues.add("R2L");
+        classValues.add("U2R");
         attributes.add(new Attribute("class", classValues));
 
-        Instances dataset = new Instances("PacketData", attributes, 0);
-        dataset.setClassIndex(dataset.numAttributes() - 1);
-        return dataset;
+        Instances header = new Instances("PacketData", attributes, 0);
+        header.setClassIndex(header.numAttributes() - 1); // Устанавливаем последний атрибут как класс
+        return header;
     }
 
-    // Классификация данных
-    public PredictionResult classify(double[] features) {
-        try {
-            Instance instance = new DenseInstance(features.length + 1); // +1 для класса
-            instance.setDataset(datasetFormat);
+    public double[] normalizeFeatures(double[] features) {
+        // Проверка на null ДО использования!
+        if (featureMins == null || featureMaxs == null) {
+            throw new IllegalStateException("");
+        }
+        if (features.length != featureMins.length) {
+            throw new IllegalArgumentException("");
+        }
 
-            for (int i = 0; i < features.length; i++) {
-                instance.setValue(i, features[i]);
+        double[] normalized = new double[features.length];
+        for (int i = 0; i < features.length; i++) {
+            double min = this.featureMins[i];
+            double max = this.featureMaxs[i];
+            if (max - min == 0) { // Избегаем деления на ноль, если min == max
+                normalized[i] = 0.0; // Или другое разумное значение
+            } else {
+                normalized[i] = (features[i] - min) / (max - min);
             }
+        }
+        return normalized;
+    }
 
-            double classIndex = model.classifyInstance(instance);
-            String predictedClass = datasetFormat.classAttribute().value((int) classIndex);
+    public PredictionResult classify(double[] features) {
+        if (model == null || dataHeader == null) {
+            System.err.println("Na.");
+            return new PredictionResult("Unknown", "Model Not Loaded", 0.0);
+        }
 
-            // Уверенность: вероятности по всем классам
+        double[] normalizedFeatures = normalizeFeatures(features);
+
+        // Создание экземпляра Weka из нормализованных признаков
+        DenseInstance instance = new DenseInstance(dataHeader.numAttributes());
+        instance.setDataset(dataHeader); // Очень важно установить dataset для экземпляра
+
+        for (int i = 0; i < normalizedFeatures.length; i++) {
+            instance.setValue(i, normalizedFeatures[i]);
+        }
+
+        // Устанавливаем пропущенное значение для атрибута класса, так как мы его предсказываем
+        instance.setClassMissing();
+
+        try {
+            double predictedClassIndex = model.classifyInstance(instance);
+            String predictedClass = dataHeader.classAttribute().value((int) predictedClassIndex);
+
+            // Оценка уверенности (confidence)
             double[] distribution = model.distributionForInstance(instance);
-            float confidence = (float) distribution[(int) classIndex];
+            double confidence = distribution[(int) predictedClassIndex];
 
-            String modelVersion = "1.0";
-
-            return new PredictionResult(predictedClass, confidence, modelVersion);
+            return new PredictionResult(predictedClass, "J48", confidence);
 
         } catch (Exception e) {
+            System.err.println("Ошибка при классификации пакета: " + e.getMessage());
             e.printStackTrace();
-            return new PredictionResult("error", 0f, "1.0");
+            return new PredictionResult("Unknown", "Error during classification", 0.0);
         }
     }
     public void retrainModelFromDBAndFile(String dbPath, String arffFilePath) {
@@ -143,7 +200,7 @@ public class PacketClassifier {
                 };
 
                 // Признак 3: numConnections — фиктивный (пока)
-                features[2] = 0;
+                features[2] = 6;
 
                 // Признак 4: tcpFlag
                 String flag = rs.getString("flags").toUpperCase();
@@ -158,7 +215,7 @@ public class PacketClassifier {
                 features[4] = rs.getInt("destination_port");
 
                 // Признак 6: interArrivalTime — фиктивный
-                features[5] = 0.0;
+                features[5] = 0.02;
 
                 // Метка класса
                 String label = rs.getString("packet_type");
@@ -175,7 +232,7 @@ public class PacketClassifier {
             writeToArffFile(arffFilePath, featuresList, classLabels);
 
             // Загрузка и обучение модели
-            DataSource source = new DataSource(arffFilePath);
+            ConverterUtils.DataSource source = new ConverterUtils.DataSource(arffFilePath);
             Instances newDataset = source.getDataSet();
             newDataset.setClassIndex(newDataset.numAttributes() - 1);
 
@@ -215,7 +272,6 @@ public class PacketClassifier {
             e.printStackTrace();
         }
     }
-
 
 
 }

@@ -12,6 +12,8 @@ import java.awt.*;
 import java.awt.TrayIcon.MessageType;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class PacketSniffer {
     static PacketClassifier classifier = new PacketClassifier();
@@ -128,9 +130,20 @@ public class PacketSniffer {
                 e.printStackTrace();
             }
         };
-
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.submit(() -> {
+            try {
+                handle.loop(-1, listener);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
         System.out.println("Started packet sniffing... (Press Ctrl+C to stop)");
-        handle.loop(-1, listener);
+        Thread.sleep(10_000);
+        handle.breakLoop(); // Прерывает цикл захвата пакетов
+        executor.shutdown();
+        handle.close();
+        System.out.println("Sniffing stopped after 10 seconds.");
     }
 
     private static PcapNetworkInterface getAvailableNetworkInterface() {

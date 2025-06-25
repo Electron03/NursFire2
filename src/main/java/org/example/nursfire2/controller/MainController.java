@@ -6,6 +6,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 import org.example.nursfire2.ML.PacketClassifier;
+import org.example.nursfire2.models.MLPredictionEntry;
 import org.example.nursfire2.stage.PageName;
 import org.example.nursfire2.stage.StageFunction;
 import org.example.nursfire2.reports.ReportGenerator;
@@ -31,6 +32,7 @@ public class MainController {
 
     @FXML
     private PieChart accessLogPieChart;
+
 
     @FXML
     public void initialize() {
@@ -78,6 +80,7 @@ public class MainController {
         accessLogPieChart.setData(pieChartData);
 
     }
+
     @FXML
     public void overfitting(){
         PacketClassifier packetClassifier=new PacketClassifier();

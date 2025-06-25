@@ -1,9 +1,6 @@
     package org.example.nursfire2.database;
 
-    import org.example.nursfire2.models.AccessLogEntry;
-    import org.example.nursfire2.models.EncryptedFile;
-    import org.example.nursfire2.models.AttackEntry;
-    import org.example.nursfire2.models.WatchedFolder;
+    import org.example.nursfire2.models.*;
 
     import java.nio.file.Path;
     import java.nio.file.Paths;
@@ -145,6 +142,26 @@
                 e.printStackTrace();
                 return false;
             }
+        }
+        public static List<MLPredictionEntry> getMLPredictions() {
+            List<MLPredictionEntry> list = new ArrayList<>();
+            String sql = "SELECT * FROM MLPredictionLog";
+
+            try (Connection conn = connect();
+                 Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery(sql)) {
+
+                while (rs.next()) {
+                    MLPredictionEntry entry = new MLPredictionEntry();
+                    entry.setPredictedClass(rs.getString("predicted_class"));
+                    list.add(entry);
+                }
+
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
+            return list;
         }
 
         public static List<EncryptedFile> getEncryptedFiles() {
@@ -304,7 +321,9 @@
 
 
         // Добавление предсказания ML-модели
-        public static void insertMLPrediction(String id, String packetId, String modelVersion, String predictedClass, float confidence) {
+        // --- Вот исправленный метод insertMLPrediction ---
+        public static void insertMLPrediction(String id, String packetId, String modelVersion, String predictedClass, double confidence) {
+            //                                                                                                     ^-- ЗДЕСЬ БЫЛ float, ТЕПЕРЬ double
             String sql = "INSERT INTO MLPredictionLog (id, packet_id, model_version, predicted_class, confidence) VALUES (?, ?, ?, ?, ?)";
 
             try (Connection conn = connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -312,10 +331,12 @@
                 pstmt.setString(2, packetId);
                 pstmt.setString(3, modelVersion);
                 pstmt.setString(4, predictedClass);
-                pstmt.setFloat(5, confidence);
+                pstmt.setDouble(5, confidence); // Это уже было правильно: используем setDouble для double значения
+
                 pstmt.executeUpdate();
                 System.out.println("result ML insert!");
             } catch (SQLException e) {
+                System.err.println("Error inserting ML prediction:"); // Более информативное сообщение
                 e.printStackTrace();
             }
         }

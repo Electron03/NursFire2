@@ -1,13 +1,23 @@
 package org.example.nursfire2.reports;
 
-import com.itextpdf.text.*;
-import com.itextpdf.text.pdf.PdfPCell;
-import com.itextpdf.text.pdf.PdfPTable;
-import com.itextpdf.text.pdf.PdfWriter;
+import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.layout.Document;
+import com.itextpdf.layout.element.Paragraph;
+import com.itextpdf.layout.element.Text;
+import com.itextpdf.layout.element.Cell;
+import com.itextpdf.layout.element.Table;
+import com.itextpdf.kernel.font.PdfFont;
+import com.itextpdf.kernel.font.PdfFontFactory;
+import com.itextpdf.io.font.PdfEncodings;
+import com.itextpdf.kernel.colors.ColorConstants;
+
 import javafx.application.Platform;
 import javafx.scene.control.Alert;
 import javafx.stage.FileChooser;
 import org.apache.poi.ss.usermodel.*;
+import com.itextpdf.kernel.font.PdfFont;
+import com.itextpdf.kernel.font.PdfFontFactory;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.example.nursfire2.database.DatabaseManager;
 import org.example.nursfire2.models.AccessLogEntry;
@@ -15,9 +25,12 @@ import org.example.nursfire2.models.AttackEntry;
 
 import java.awt.*;
 import java.io.*;
-import java.util.*;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static com.itextpdf.text.FontFactory.*;
 
 public class ReportGenerator {
 
@@ -54,30 +67,51 @@ public class ReportGenerator {
     }
 
     private static void generateAttackReportPdf(File file) {
-        List<AttackEntry> logs=DatabaseManager.getAttackLogs();
+        List<AttackEntry> logs = DatabaseManager.getAttackLogs();
 
         try {
-            Document document = new Document();
-            PdfWriter.getInstance(document, new FileOutputStream(file));
-            document.open();
+            PdfWriter writer = new PdfWriter(file.getAbsolutePath());
+            PdfDocument pdf = new PdfDocument(writer);
+            Document document = new Document(pdf);
 
-            document.add(new Paragraph("ОТЧЁТ ОБ ОБНАРУЖЕННЫХ АТАКАХ", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16)));
-            document.add(new Paragraph("Количество записей: " + logs.size()));
-            document.add(Chunk.NEWLINE);
+            PdfFont font = PdfFontFactory.createFont("C:\\Windows\\Fonts\\arial.ttf", PdfEncodings.IDENTITY_H,
+                    PdfFontFactory.EmbeddingStrategy.FORCE_EMBEDDED);
 
-            PdfPTable table = new PdfPTable(5);
-            Stream.of("Пакет", "Тип атаки", "Уровень", "Метод", "Время").forEach(header -> {
-                PdfPCell cell = new PdfPCell(new Phrase(header));
-                cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
-                table.addCell(cell);
-            });
+            // Заголовок
+            Paragraph title = new Paragraph(new Text("ОТЧЁТ ОБ ОБНАРУЖЕННЫХ АТАКАХ").setFont(font).setFontSize(16));
+            document.add(title);
+            document.add(new Paragraph(new Text("Количество записей: " + logs.size()).setFont(font)));
+
+            // 🔢 Подсчёт количества по типам атак
+            Map<String, Long> attackStats = logs.stream()
+                    .collect(Collectors.groupingBy(AttackEntry::getAttackType, Collectors.counting()));
+
+            document.add(new Paragraph(new Text("Статистика по типам атак:").setFont(font)));
+
+            for (Map.Entry<String, Long> entry : attackStats.entrySet()) {
+                String line = "- " + entry.getKey() + ": " + entry.getValue();
+                document.add(new Paragraph(new Text(line).setFont(font)));
+            }
+
+            document.add(new Paragraph("\n"));
+
+            // 📋 Таблица с логами
+            float[] columnWidths = {80F, 100F, 60F, 100F, 100F};
+            Table table = new Table(columnWidths);
+
+            String[] headers = {"Пакет", "Тип атаки", "Уровень", "Метод", "Время"};
+            for (String h : headers) {
+                Cell cell = new Cell().add(new Paragraph(h).setFont(font));
+                cell.setBackgroundColor(ColorConstants.LIGHT_GRAY);
+                table.addHeaderCell(cell);
+            }
 
             for (AttackEntry entry : logs) {
-                table.addCell(entry.getPacketId());
-                table.addCell(entry.getAttackType());
-                table.addCell(String.valueOf(entry.getSeverity()));
-                table.addCell(entry.getDetectionMethod());
-                table.addCell(entry.getDetectedAt());
+                table.addCell(new Cell().add(new Paragraph(entry.getPacketId()).setFont(font)));
+                table.addCell(new Cell().add(new Paragraph(entry.getAttackType()).setFont(font)));
+                table.addCell(new Cell().add(new Paragraph(String.valueOf(entry.getSeverity())).setFont(font)));
+                table.addCell(new Cell().add(new Paragraph(entry.getDetectionMethod()).setFont(font)));
+                table.addCell(new Cell().add(new Paragraph(entry.getDetectedAt()).setFont(font)));
             }
 
             document.add(table);
@@ -86,6 +120,7 @@ public class ReportGenerator {
             showError("Ошибка генерации PDF", e.getMessage());
         }
     }
+
 
     private static void generateAttackReportExcel(File file) {
         List<org.example.nursfire2.models.AttackEntry> logs = org.example.nursfire2.database.DatabaseManager.getAttackLogs();
@@ -121,27 +156,34 @@ public class ReportGenerator {
         List<AccessLogEntry> logs = DatabaseManager.getAccessLogs();
 
         try {
-            Document document = new Document();
-            PdfWriter.getInstance(document, new FileOutputStream(file));
-            document.open();
+            PdfWriter writer = new PdfWriter(file.getAbsolutePath());
+            PdfDocument pdf = new PdfDocument(writer);
+            Document document = new Document(pdf);
 
-            document.add(new Paragraph("ОТЧЁТ ПО ЗАЩИТЕ ФАЙЛОВОЙ СИСТЕМЫ", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16)));
-            document.add(new Paragraph("Количество записей: " + logs.size()));
-            document.add(Chunk.NEWLINE);
+            PdfFont font = PdfFontFactory.createFont("C:\\Windows\\Fonts\\arial.ttf", PdfEncodings.IDENTITY_H,
+                    PdfFontFactory.EmbeddingStrategy.FORCE_EMBEDDED);
 
-            PdfPTable table = new PdfPTable(5);
-            Stream.of("Пользователь", "Файл", "Тип доступа", "Результат", "Время").forEach(header -> {
-                PdfPCell cell = new PdfPCell(new Phrase(header));
-                cell.setBackgroundColor(BaseColor.LIGHT_GRAY);
-                table.addCell(cell);
-            });
+            Paragraph title = new Paragraph(new Text("ОТЧЁТ ПО ЗАЩИТЕ ФАЙЛОВОЙ СИСТЕМЫ").setFont(font).setFontSize(16));
+            document.add(title);
+            document.add(new Paragraph(new Text("Количество записей: " + logs.size()).setFont(font)));
+            document.add(new Paragraph("\n"));
+
+            float[] columnWidths = {100F, 150F, 100F, 100F, 100F};
+            Table table = new Table(columnWidths);
+
+            String[] headers = {"Пользователь", "Файл", "Тип доступа", "Результат", "Время"};
+            for (String h : headers) {
+                Cell cell = new Cell().add(new Paragraph(h).setFont(font));
+                cell.setBackgroundColor(ColorConstants.LIGHT_GRAY);
+                table.addHeaderCell(cell);
+            }
 
             for (AccessLogEntry entry : logs) {
-                table.addCell(entry.getUsername());
-                table.addCell(entry.getFilepath());
-                table.addCell(entry.getAccessType());
-                table.addCell(entry.getAccessResult());
-                table.addCell(entry.getAccessTime());
+                table.addCell(new Cell().add(new Paragraph(entry.getUsername()).setFont(font)));
+                table.addCell(new Cell().add(new Paragraph(entry.getFilepath()).setFont(font)));
+                table.addCell(new Cell().add(new Paragraph(entry.getAccessType()).setFont(font)));
+                table.addCell(new Cell().add(new Paragraph(entry.getAccessResult()).setFont(font)));
+                table.addCell(new Cell().add(new Paragraph(entry.getAccessTime()).setFont(font)));
             }
 
             document.add(table);
@@ -150,6 +192,7 @@ public class ReportGenerator {
             showError("Ошибка генерации PDF", e.getMessage());
         }
     }
+
 
     private static void generateFileProtectionReportExcel(File file) {
         List<AccessLogEntry> logs = DatabaseManager.getAccessLogs();

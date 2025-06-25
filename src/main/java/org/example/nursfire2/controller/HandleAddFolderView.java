@@ -133,9 +133,10 @@ public class HandleAddFolderView {
         }
         if(DatabaseManager.addWatchedFolder(folderPath.toString())){
             result.setText("папка успешно добавлено");
+            reset();
         }else result.setText("ошибка добавлении папки");
         printPermissions(folderPath);
-        reset();
+
     }
     @FXML
     private void onExit(ActionEvent event) throws IOException {

